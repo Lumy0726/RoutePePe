@@ -199,7 +199,8 @@ If you see this value, than you should set
 You need Microsoft Visual Studio and CMake.  
 1. Download source code (or "git clone" etc).
 2. Download Steinberg VST SDK.
-You can download it from offcial website or from release section of this github repository.
+You can download it from offcial website or from google drive:
+[VST SDK](https://drive.google.com/file/d/18xqMjgHY_G8FRqYXZG3HOgQuEbYtzSQE/view?usp=sharing)
 Also Unzip that somewhere.
 3. Open "CMakeList.txt" of project root directory and set your path of VST SDK.
 Inside that SDK directory, there are "base", "bin", "public.sdk", etc (This is just for reference).
@@ -220,7 +221,7 @@ set(vst3sdk_SOURCE_DIR C:/Your_SDK_PATH/vst3sdk)
 > * Uncheck "SMTG_CREATE_PLUGIN_LINK".
 > * Uncheck "SMTG_RUN_VST_VALIDATOR".
 If you uncheck this build might fail at the last step (on release mode? I don't know reason).
-But actuall VST3 file exists and you can use it.
+But actual VST3 file exists and you can use it.
 > * Uncheck "VSTGUI_ENABLE_DEPRECATED_METHODS".
 > * Uncheck "VSTGUI_ENABLE_OPENGL_SUPPORT".
 > * Uncheck "VSTGUI_ENABLE_XMLPARSER".
