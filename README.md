@@ -1,6 +1,6 @@
 # What is RoutePePe?  
-RoutePePe is VST¢ç3 plugin that routes (connects, sends) audio stream between two DAW (Digital Audio Workstation), which can be running own separated audio interface!
-VST¢ç is a trademark of Steinberg Media Technologies GmbH, registered in Europe and other countries.
+RoutePePe is VSTÂ®3 plugin that routes (connects, sends) audio stream between two DAW (Digital Audio Workstation), which can be running own separated audio interface!
+VSTÂ® is a trademark of Steinberg Media Technologies GmbH, registered in Europe and other countries.
 
 <img src="VST_Compatible_Logo_Steinberg_with_TM.png">
 <img src="screenshot1.png">
