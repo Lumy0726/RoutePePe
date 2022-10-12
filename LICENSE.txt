@@ -1,0 +1,9 @@
+//-----------------------------------------------------------------------------
+// LICENSE
+// (c) 2022, LumyLumyStudio, All Rights Reserved
+//-----------------------------------------------------------------------------
+
+This Software "RoutePePe" is licensed under the license of VST® 3 SDK by "(c) 2022, Steinberg Media Technologies GmbH", and under the terms of the General Public License (GPL) Version 3. VST® is a trademark of Steinberg Media Technologies GmbH, registered in Europe and other countries.
+Details of these licenses can be found at: www.steinberg.net/sdklicenses_vst3
+Details of these licenses can be found at: www.gnu.org/licenses/gpl-3.0.html
+//----------------------------------------------------------------------------------
