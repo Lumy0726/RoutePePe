@@ -42,6 +42,14 @@ If there was no error at all, this means that RoutePePe successfully send/receiv
 ---
 
 ## How to use
+> ### Download
+> * Get RoutePePe release binary from release section of github RoutePePe repository.  
+[RoutePePe release](https://github.com/Lumy0726/RoutePePe/releases/)  
+Or you can build RoutePePe yourself if you want.
+> * Upzip it somewhere you want.
+> * Add it's path to VST path setting of you DAW, or just copy binary into existing VST path.
+Of course you need to rescan VST on your DAW.
+> 
 > ### Connection
 > * Insert RoutePePe plugin and set "R)Connection (shared memory) ID".
 > * Reset first RoutePePe.
@@ -55,7 +63,7 @@ Note that some(most?) DAW might needs UI refresh to check statistic value.
 Statistic will be reset at the first connection,
 and "Connected, (first avg buffer pos)" value shows "true, ...",
 if everythings goes well.
->
+> 
 > ### Caution
 > * **You should need to set "R)32bit sample handling (No effect for 64bit)" option to "Convert to 64bit",
 > if two DAW are running on 32bit/64bit float sample respectively.**
@@ -163,7 +171,8 @@ For disconnection this value is not changed (but "Resync - low" and/or "Overflow
 This also shows first average buffer position,
 which is actually decides latency,
 but actual latency can be slightly different than this value too.
-This first average buffer position is only one-time updated after the first connection or after the resync.
+This first average buffer position is only one-time updated after the first connection or after the resync, after some time ("Counts to get avg buffer pos (ForResample)" setting value increases this time).
+Note that first average buffer position is only displayed if RoutePePe has output channels.
 RoutePePe can say that average buffer position is "a - r <= avgerage buffer position <= a + r",
 if resample is enabled,
 ('a' is the first average buffer position, 'r' is "Resample if avg buffer pos moves over->" value).
