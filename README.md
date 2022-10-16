@@ -132,8 +132,8 @@ This value actually decides latency, but actually latency can be slightly differ
 Note that actual maximum value of this setting is "Buffer size".
 And RoutePePe doesn't inform that actual value is changed to "Buffer size", so please be careful.
 Setting this value does not require reset,
-therefore you can change latency while connection is on by changing this and "Buffer resync" options.
-Of course such behavior cause resync (audio dropout) at that moment.
+therefore you can change latency while connection is on by changing this value.
+Of course such behavior cause resync (audio dropout) at that moment, and increase "high" value of "Resync - (low, high)".
 > * Buffer resync low
 > > If buffer position goes below this, RoutePePe will do resync.
 You can just leave it as 0.

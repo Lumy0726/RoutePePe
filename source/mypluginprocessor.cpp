@@ -367,6 +367,13 @@ tresult PLUGIN_API RoutePePeProcessor::process (Vst::ProcessData& data)
             intTemp = (int)(::round((double)(value) * (double)BUFFER_OPTION_COUNT));
             bufsync_prefill_v = (size_t)int2regularSize(intTemp, BUFFER_HALFSCALE);
             if (bufsync_prefill_v > (size_t)BUFFER_ETC_MAX_SIZE) bufsync_prefill_v = (size_t)BUFFER_ETC_MAX_SIZE;
+            if (oPort_count > 0) {
+              oPort_SharedM[0]->mem_lock(SMEMORY_LOCK_INTERVAL);
+              for (int i = 0; i < oPort_count; i++) {
+                oPort_Sbuffers[i]->push_fill((AB_stype)0, (size_t)0);
+              }
+              oPort_SharedM[0]->mem_unlock();
+            }
             break;
             //
           case RPPID::BUFSYNC_LOW:

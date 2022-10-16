@@ -97,7 +97,7 @@ protected:
   size_t bufsync_prefill_v = (size_t)2048;
   size_t bufsync_low_v = (size_t)0;
   size_t bufsync_high_v = (size_t)4096;
-  size_t prefill_synccounts_v = (size_t)16;
+  size_t prefill_synccounts_v = (size_t)64;
   //
   size_t bufavgpos_counts_v = (size_t)4096;
   size_t noresample_len_v = (size_t)64;
