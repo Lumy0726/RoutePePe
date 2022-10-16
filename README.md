@@ -177,19 +177,12 @@ RoutePePe can say that average buffer position is "a - r <= avgerage buffer posi
 if resample is enabled,
 ('a' is the first average buffer position, 'r' is "Resample if avg buffer pos moves over->" value).
 You can not connect/disconnect or control latency with changing this value..
-> * Resync - low
-> > Counts of resync because buffer position is low.
+> * Resync - (low, high)
+> > Counts of resync because buffer position is low or high.
 Only calculated when this RoutePePe has output channel.
-> * Resync - high
-> > Counts of resync because buffer position is high.
-Only calculated when this RoutePePe has output channel.
-> * Resample - low
-> > Counts of resample because average buffer position is low.
-This is equal with removed audio sample counts.
-Only calculated when this RoutePePe has output channel.
-> * Resample - high
-> > Counts of resample because average buffer position is high.
-This is equal with inserted audio sample counts.
+> * Resample - (low, high)
+> > Counts of resample because average buffer position is low or high.
+This is equal with inserted/removed audio sample counts.
 Only calculated when this RoutePePe has output channel.
 > * Overflow
 > > Counts of overflow, there is no enough empty buffer to write.

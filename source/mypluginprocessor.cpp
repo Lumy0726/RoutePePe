@@ -297,7 +297,7 @@ tresult PLUGIN_API RoutePePeProcessor::process (Vst::ProcessData& data)
   //Read inputs parameter changes
 
   //
-  int intTemp;
+  int intTemp, intTemp2;
   if (data.inputParameterChanges) {
     int32 numParamsChanged = data.inputParameterChanges->getParameterCount();
     for (int32 index = 0; index < numParamsChanged; index++) {
@@ -393,46 +393,46 @@ tresult PLUGIN_API RoutePePeProcessor::process (Vst::ProcessData& data)
             break;
 
             //
-          case RPPID::S_RESYNC_LOW:
-            intTemp = (int)(::round((double)(value)*STATISTIC_MAXCOUNT));
-            c_resync_low = intTemp;
-            if (c_resync_low < 0) c_resync_low = 0;
-            else if (c_resync_low > STATISTIC_MAXCOUNT) c_resync_low = STATISTIC_MAXCOUNT;
+          case RPPID::S_RESYNC:
+            intTemp = (int)(::round((double)(value) * (
+              (STATISTIC_MAXCOUNT + 1) * (STATISTIC_MAXCOUNT + 1) - 1
+              )));
+            intTemp2 = intTemp % (STATISTIC_MAXCOUNT + 1);
+            intTemp = intTemp / (STATISTIC_MAXCOUNT + 1);
+            c_resync_low = (size_t)intTemp2;
+            if (c_resync_low < (size_t)0) c_resync_low = (size_t)0;
+            else if (c_resync_low > (size_t)STATISTIC_MAXCOUNT) c_resync_low = (size_t)STATISTIC_MAXCOUNT;
+            c_resync_high = (size_t)intTemp;
+            if (c_resync_high < (size_t)0) c_resync_high = (size_t)0;
+            else if (c_resync_high > (size_t)STATISTIC_MAXCOUNT) c_resync_high = (size_t)STATISTIC_MAXCOUNT;
             break;
             //
-          case RPPID::S_RESYNC_HIGH:
-            intTemp = (int)(::round((double)(value)*STATISTIC_MAXCOUNT));
-            c_resync_high = intTemp;
-            if (c_resync_high < 0) c_resync_high = 0;
-            else if (c_resync_high > STATISTIC_MAXCOUNT) c_resync_high = STATISTIC_MAXCOUNT;
-            break;
-            //
-          case RPPID::S_RESAMPLE_LOW:
-            intTemp = (int)(::round((double)(value)*STATISTIC_MAXCOUNT));
-            c_resample_low = intTemp;
-            if (c_resample_low < 0) c_resample_low = 0;
-            else if (c_resample_low > STATISTIC_MAXCOUNT) c_resample_low = STATISTIC_MAXCOUNT;
-            break;
-            //
-          case RPPID::S_RESAMPLE_HIGH:
-            intTemp = (int)(::round((double)(value)*STATISTIC_MAXCOUNT));
-            c_resample_high = intTemp;
-            if (c_resample_high < 0) c_resample_high = 0;
-            else if (c_resample_high > STATISTIC_MAXCOUNT) c_resample_high = STATISTIC_MAXCOUNT;
+          case RPPID::S_RESAMPLE:
+            intTemp = (int)(::round((double)(value) * (
+              (STATISTIC_MAXCOUNT + 1) * (STATISTIC_MAXCOUNT + 1) - 1
+              )));
+            intTemp2 = intTemp % (STATISTIC_MAXCOUNT + 1);
+            intTemp = intTemp / (STATISTIC_MAXCOUNT + 1);
+            c_resample_low = (size_t)intTemp2;
+            if (c_resample_low < (size_t)0) c_resample_low = (size_t)0;
+            else if (c_resample_low > (size_t)STATISTIC_MAXCOUNT) c_resample_low = (size_t)STATISTIC_MAXCOUNT;
+            c_resample_high = (size_t)intTemp;
+            if (c_resample_high < (size_t)0) c_resample_high = (size_t)0;
+            else if (c_resample_high > (size_t)STATISTIC_MAXCOUNT) c_resample_high = (size_t)STATISTIC_MAXCOUNT;
             break;
             //
           case RPPID::S_OVERFLOW:
             intTemp = (int)(::round((double)(value)*STATISTIC_MAXCOUNT));
-            c_overflow = intTemp;
-            if (c_overflow < 0) c_overflow = 0;
-            else if (c_overflow > STATISTIC_MAXCOUNT) c_overflow = STATISTIC_MAXCOUNT;
+            c_overflow = (size_t)intTemp;
+            if (c_overflow < (size_t)0) c_overflow = (size_t)0;
+            else if (c_overflow > (size_t)STATISTIC_MAXCOUNT) c_overflow = (size_t)STATISTIC_MAXCOUNT;
             break;
             //
           case RPPID::S_32MISSING:
             intTemp = (int)(::round((double)(value)*STATISTIC_MAXCOUNT));
-            c_32missing = intTemp;
-            if (c_32missing < 0) c_32missing = 0;
-            else if (c_32missing > STATISTIC_MAXCOUNT) c_32missing = STATISTIC_MAXCOUNT;
+            c_32missing = (size_t)intTemp;
+            if (c_32missing < (size_t)0) c_32missing = (size_t)0;
+            else if (c_32missing > (size_t)STATISTIC_MAXCOUNT) c_32missing = (size_t)STATISTIC_MAXCOUNT;
             break;
           }
 
@@ -867,25 +867,17 @@ tresult PLUGIN_API RoutePePeProcessor::process (Vst::ProcessData& data)
     if (pvq) {
       pvq->addPoint(0, c_overflow / (Vst::ParamValue)STATISTIC_MAXCOUNT, idx);
     }
-    pvq = data.outputParameterChanges->addParameterData(RPPID::S_RESYNC_LOW, idx);
+    pvq = data.outputParameterChanges->addParameterData(RPPID::S_RESYNC, idx);
     pvq = data.outputParameterChanges->getParameterData(idx);
     if (pvq) {
-      pvq->addPoint(0, c_resync_low / (Vst::ParamValue)STATISTIC_MAXCOUNT, idx);
+      intTemp = (int)(c_resync_low + c_resync_high * (size_t)(STATISTIC_MAXCOUNT + 1));
+      pvq->addPoint(0, intTemp / (Vst::ParamValue)((STATISTIC_MAXCOUNT + 1) * (STATISTIC_MAXCOUNT + 1) - 1), idx);
     }
-    pvq = data.outputParameterChanges->addParameterData(RPPID::S_RESYNC_HIGH, idx);
+    pvq = data.outputParameterChanges->addParameterData(RPPID::S_RESAMPLE, idx);
     pvq = data.outputParameterChanges->getParameterData(idx);
     if (pvq) {
-      pvq->addPoint(0, c_resync_high / (Vst::ParamValue)STATISTIC_MAXCOUNT, idx);
-    }
-    pvq = data.outputParameterChanges->addParameterData(RPPID::S_RESAMPLE_LOW, idx);
-    pvq = data.outputParameterChanges->getParameterData(idx);
-    if (pvq) {
-      pvq->addPoint(0, c_resample_low / (Vst::ParamValue)STATISTIC_MAXCOUNT, idx);
-    }
-    pvq = data.outputParameterChanges->addParameterData(RPPID::S_RESAMPLE_HIGH, idx);
-    pvq = data.outputParameterChanges->getParameterData(idx);
-    if (pvq) {
-      pvq->addPoint(0, c_resample_high / (Vst::ParamValue)STATISTIC_MAXCOUNT, idx);
+      intTemp = (int)(c_resample_low + c_resample_high * (size_t)(STATISTIC_MAXCOUNT + 1));
+      pvq->addPoint(0, intTemp / (Vst::ParamValue)((STATISTIC_MAXCOUNT + 1) * (STATISTIC_MAXCOUNT + 1) - 1), idx);
     }
     pvq = data.outputParameterChanges->addParameterData(RPPID::S_32MISSING, idx);
     pvq = data.outputParameterChanges->getParameterData(idx);

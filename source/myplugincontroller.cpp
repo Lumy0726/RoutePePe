@@ -143,36 +143,20 @@ tresult PLUGIN_API RoutePePeController::initialize (FUnknown* context)
     RPPID::S_STARTED, 0
   );
   parameters.addParameter(
-    STR16("Resync - low"),
+    STR16("Resync - (low, high)"),
     STR16(""),
     (Steinberg::int32)(0),
     (Steinberg::Vst::ParamValue)(0.0),
     (Steinberg::int32)(Vst::ParameterInfo::kNoFlags),
-    RPPID::S_RESYNC_LOW, 0
+    RPPID::S_RESYNC, 0
   );
   parameters.addParameter(
-    STR16("Resync - high"),
+    STR16("Resample - (low, high)"),
     STR16(""),
     (Steinberg::int32)(0),
     (Steinberg::Vst::ParamValue)(0.0),
     (Steinberg::int32)(Vst::ParameterInfo::kNoFlags),
-    RPPID::S_RESYNC_HIGH, 0
-  );
-  parameters.addParameter(
-    STR16("Resample - low"),
-    STR16(""),
-    (Steinberg::int32)(0),
-    (Steinberg::Vst::ParamValue)(0.0),
-    (Steinberg::int32)(Vst::ParameterInfo::kNoFlags),
-    RPPID::S_RESAMPLE_LOW, 0
-  );
-  parameters.addParameter(
-    STR16("Resample - high"),
-    STR16(""),
-    (Steinberg::int32)(0),
-    (Steinberg::Vst::ParamValue)(0.0),
-    (Steinberg::int32)(Vst::ParameterInfo::kNoFlags),
-    RPPID::S_RESAMPLE_HIGH, 0
+    RPPID::S_RESAMPLE, 0
   );
   parameters.addParameter(
     STR16("Overflow"),
@@ -329,7 +313,7 @@ tresult PLUGIN_API RoutePePeController::getParamStringByValue (Vst::ParamID tag,
   // called by host to get a string for given normalized value of a specific parameter
   // (without having to set the value!)
 
-  int intTemp;
+  int intTemp, intTemp2;
   switch (tag) {
 
     //
@@ -399,10 +383,21 @@ tresult PLUGIN_API RoutePePeController::getParamStringByValue (Vst::ParamID tag,
       swprintf_s((wchar_t*)string, (size_t)128, L"true, (%04d Samples)", intTemp);
     }
     return Steinberg::kResultOk;
-  case RPPID::S_RESYNC_LOW:
-  case RPPID::S_RESYNC_HIGH:
-  case RPPID::S_RESAMPLE_LOW:
-  case RPPID::S_RESAMPLE_HIGH:
+  case RPPID::S_RESYNC:
+  case RPPID::S_RESAMPLE:
+    intTemp = (int)(::round((double)(valueNormalized) * (
+      (STATISTIC_MAXCOUNT + 1) * (STATISTIC_MAXCOUNT + 1) - 1
+      )));
+    intTemp2 = intTemp % (STATISTIC_MAXCOUNT + 1);
+    intTemp = intTemp / (STATISTIC_MAXCOUNT + 1);
+    swprintf_s((wchar_t*)string, (size_t)128,
+      L"(%d%s, %d%s)",
+      intTemp2,
+      (intTemp >= STATISTIC_MAXCOUNT) ? L"+" : L"",
+      intTemp,
+      (intTemp >= STATISTIC_MAXCOUNT) ? L"+" : L""
+    );
+    return Steinberg::kResultOk;
   case RPPID::S_OVERFLOW:
   case RPPID::S_32MISSING:
     intTemp = (int)(::round((double)(valueNormalized) * STATISTIC_MAXCOUNT));
@@ -424,7 +419,7 @@ tresult PLUGIN_API RoutePePeController::getParamValueByString (Vst::ParamID tag,
   // called by host to get a normalized value from a string representation of a specific parameter
   // (without having to set the value!)
 
-  int intTemp;
+  int intTemp, intTemp2;
   switch (tag) {
 
     //
@@ -506,10 +501,22 @@ tresult PLUGIN_API RoutePePeController::getParamValueByString (Vst::ParamID tag,
       valueNormalized = (Vst::ParamValue)(0.0);
     }
     return Steinberg::kResultOk;
-  case RPPID::S_RESYNC_LOW:
-  case RPPID::S_RESYNC_HIGH:
-  case RPPID::S_RESAMPLE_LOW:
-  case RPPID::S_RESAMPLE_HIGH:
+  case RPPID::S_RESYNC:
+  case RPPID::S_RESAMPLE:
+    intTemp = intTemp2 = 0;
+    for (size_t i = (size_t)0; true; ) {
+      wchar_t w = ((const wchar_t*)string)[i++];
+      if (w == (wchar_t)0) break;
+      if (w == L'(') {
+        intTemp2 = _wtoi((const wchar_t*)string + i);
+      }
+      if (w == L' ') {
+        intTemp = _wtoi((const wchar_t*)string + i);
+      }
+    }
+    intTemp = intTemp2 + intTemp * (STATISTIC_MAXCOUNT + 1);
+    valueNormalized = intTemp / (Vst::ParamValue)((STATISTIC_MAXCOUNT + 1) * (STATISTIC_MAXCOUNT + 1) - 1);
+    return Steinberg::kResultOk;
   case RPPID::S_OVERFLOW:
   case RPPID::S_32MISSING:
     intTemp = _wtoi((const wchar_t*)string);
