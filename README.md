@@ -172,7 +172,7 @@ This also shows first average buffer position,
 which is actually decides latency,
 but actual latency can be slightly different than this value too.
 This first average buffer position is only one-time updated after the first connection or after the resync, after some time ("Counts to get avg buffer pos (ForResample)" setting value increases this time).
-Note that first average buffer position is only displayed if RoutePePe has output channels.
+Note that first average buffer position is only displayed if RoutePePe has output channels and resample is enabled.
 RoutePePe can say that average buffer position is "a - r <= avgerage buffer position <= a + r",
 if resample is enabled,
 ('a' is the first average buffer position, 'r' is "Resample if avg buffer pos moves over->" value).
