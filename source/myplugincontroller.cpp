@@ -111,6 +111,14 @@ tresult PLUGIN_API RoutePePeController::initialize (FUnknown* context)
     RPPID::BUFSYNC_HIGH, 0
   );
   parameters.addParameter(
+    STR16("Counts to get avg bufer pos (ForResync)"),
+    STR16(""),
+    (Steinberg::int32)(0),
+    (Steinberg::Vst::ParamValue)(0.0),
+    (Steinberg::int32)(Vst::ParameterInfo::kNoFlags),
+    RPPID::PREFILL_SYNC_COUNTS, 0
+  );
+  parameters.addParameter(
     STR16("Counts to get avg buffer pos (ForResample)"),
     STR16(""),
     (Steinberg::int32)(0),
@@ -135,7 +143,7 @@ tresult PLUGIN_API RoutePePeController::initialize (FUnknown* context)
     RPPID::DESC2, 0
   );
   parameters.addParameter(
-    STR16("Connected, (first avg buffer pos)"),
+    STR16("Connected, (first resample avg buffer pos)"),
     STR16(""),
     (Steinberg::int32)(0),
     (Steinberg::Vst::ParamValue)(0.0),
@@ -251,6 +259,11 @@ tresult PLUGIN_API RoutePePeController::setComponentState (IBStream* state)
     pp = parameters.getParameter(RPPID::BUFSYNC_HIGH);
     if (!tempB || pp == NULL) break;
     pp->setNormalized((Steinberg::Vst::ParamValue)((double)regularSize2int((int)int64temp, BUFFER_HALFSCALE) / (double)BUFFER_OPTION_COUNT));
+    //
+    tempB = streamer.readInt64(int64temp);
+    pp = parameters.getParameter(RPPID::PREFILL_SYNC_COUNTS);
+    if (!tempB || pp == NULL) break;
+    pp->setNormalized((Steinberg::Vst::ParamValue)((double)regularSize2int((int)int64temp, BUFFER_HALFSCALE) / (double)BUFFER_OPTION_COUNT));
 
     //
     tempB = streamer.readInt64(int64temp);
@@ -356,6 +369,15 @@ tresult PLUGIN_API RoutePePeController::getParamStringByValue (Vst::ParamID tag,
   case RPPID::BUFSYNC_HIGH:
     intTemp = (int)(::round((double)(valueNormalized) * (double)BUFFER_OPTION_COUNT));
     swprintf_s((wchar_t*)string, (size_t)128, L"%02d Samples", int2regularSize(intTemp, BUFFER_HALFSCALE));
+    return Steinberg::kResultOk;
+  case RPPID::PREFILL_SYNC_COUNTS:
+    intTemp = (int)(::round((double)(valueNormalized) * (double)BUFFER_OPTION_COUNT));
+    if (intTemp) {
+      swprintf_s((wchar_t*)string, (size_t)128, L"%02d Counts", int2regularSize(intTemp, BUFFER_HALFSCALE));
+    }
+    else {
+      wcscpy_s((wchar_t*)string, (rsize_t)128, L"Direct prefill");
+    }
     return Steinberg::kResultOk;
   case RPPID::BUFAVGPOS_COUNTS:
     intTemp = (int)(::round((double)(valueNormalized) * (double)BUFFER_OPTION_COUNT));
@@ -468,13 +490,14 @@ tresult PLUGIN_API RoutePePeController::getParamValueByString (Vst::ParamID tag,
     intTemp = _wtoi((const wchar_t*)string);
     valueNormalized = (Steinberg::Vst::ParamValue)((double)regularSize2int(intTemp, BUFFER_HALFSCALE) / (double)BUFFER_OPTION_COUNT);
     return Steinberg::kResultOk;
+  case RPPID::PREFILL_SYNC_COUNTS:
   case RPPID::BUFAVGPOS_COUNTS:
-    if ((wchar_t)(string[0]) == L'N') {
-      valueNormalized = (Vst::ParamValue)(0.0);
+    intTemp = _wtoi((const wchar_t*)string);
+    if (intTemp > 0) {
+      valueNormalized = (Steinberg::Vst::ParamValue)((double)regularSize2int(intTemp, BUFFER_HALFSCALE) / (double)BUFFER_OPTION_COUNT);
     }
     else {
-      intTemp = _wtoi((const wchar_t*)string);
-      valueNormalized = (Steinberg::Vst::ParamValue)((double)regularSize2int(intTemp, BUFFER_HALFSCALE) / (double)BUFFER_OPTION_COUNT);
+      valueNormalized = (Vst::ParamValue)(0.0);
     }
     return Steinberg::kResultOk;
     //

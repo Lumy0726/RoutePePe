@@ -80,6 +80,7 @@ protected:
   size_t bufsync_prefill = (size_t)0;
   size_t bufsync_low = (size_t)0;
   size_t bufsync_high = (size_t)0;
+  size_t prefill_synccounts = (size_t)0;
   //
   size_t bufavgpos_counts = (size_t)0;
   size_t noresample_len = (size_t)0;
@@ -96,6 +97,7 @@ protected:
   size_t bufsync_prefill_v = (size_t)2048;
   size_t bufsync_low_v = (size_t)0;
   size_t bufsync_high_v = (size_t)4096;
+  size_t prefill_synccounts_v = (size_t)16;
   //
   size_t bufavgpos_counts_v = (size_t)4096;
   size_t noresample_len_v = (size_t)64;
@@ -109,10 +111,12 @@ protected:
   AudioBufferOnMEM* iPort_Sbuffers[MAX_PORTS] = { NULL, };
   SharedM* oPort_SharedM[MAX_PORTS] = { NULL, };
   AudioBufferOnMEM* oPort_Sbuffers[MAX_PORTS] = { NULL, };
+  //
   size_t oPort_bufavgpos_first[MAX_PORTS] = { (size_t)0, };
   size_t oPort_bufavgpos[MAX_PORTS] = { (size_t)0,};
   long long int oPort_bufavgpos_sum[MAX_PORTS] = { (long long int)0,};
   size_t oPort_bufavgpos_count[MAX_PORTS] = { (size_t)0, };
+  bool prefillSyncState[MAX_PORTS] = { false, };
 
   //-------------------------
   //field of RoutePePeProcessor - statistic

@@ -270,14 +270,16 @@ tresult PLUGIN_API RoutePePeProcessor::setActive (TBool state)
     if (bufSize <= bufsync_high && bufSize > (size_t)0) bufsync_high = bufSize - (size_t)1;
     if (bufsync_high < bufsync_prefill) bufsync_high = bufsync_prefill;
     if (bufsync_prefill < bufsync_low) bufsync_low = bufsync_prefill;
+    prefill_synccounts = prefill_synccounts_v;
     bufavgpos_counts = bufavgpos_counts_v;
     noresample_len = noresample_len_v;
-    //init value related with "bufavgpos"
+    //init value related with "bufavgpos", init value "prefillSyncState"
     for (int i = 0; i < MAX_PORTS; i++) {
       oPort_bufavgpos_first[i] = (size_t)0;
       oPort_bufavgpos[i] = (size_t)0;
       oPort_bufavgpos_sum[i] = (long long int)0;
       oPort_bufavgpos_count[i] = (size_t)0;
+      prefillSyncState[i] = false;
     }
     //init statistic
     if (iPort_count == 0 && oPort_count > 0) {
@@ -378,6 +380,12 @@ tresult PLUGIN_API RoutePePeProcessor::process (Vst::ProcessData& data)
             bufsync_high_v = (size_t)int2regularSize(intTemp, BUFFER_HALFSCALE);
             if (bufsync_high_v > (size_t)BUFFER_ETC_MAX_SIZE) bufsync_high_v = (size_t)BUFFER_ETC_MAX_SIZE;
             break;
+            //
+          case RPPID::PREFILL_SYNC_COUNTS:
+            intTemp = (int)(::round((double)(value) * (double)BUFFER_OPTION_COUNT));
+            prefill_synccounts_v = (size_t)int2regularSize(intTemp, BUFFER_HALFSCALE);
+            if (prefill_synccounts_v > (size_t)BUFFER_ETC_MAX_SIZE) prefill_synccounts_v = (size_t)BUFFER_ETC_MAX_SIZE;
+            break;
 
             //
           case RPPID::BUFAVGPOS_COUNTS:
@@ -449,6 +457,7 @@ tresult PLUGIN_API RoutePePeProcessor::process (Vst::ProcessData& data)
     if (bufSize <= bufsync_high && bufSize > (size_t)0) bufsync_high = bufSize - (size_t)1;
     if (bufsync_high < bufsync_prefill) bufsync_high = bufsync_prefill;
     if (bufsync_prefill < bufsync_low) bufsync_low = bufsync_prefill;
+    prefill_synccounts = prefill_synccounts_v;
     bufavgpos_counts = bufavgpos_counts_v;
     noresample_len = noresample_len_v;
   }
@@ -516,35 +525,64 @@ tresult PLUGIN_API RoutePePeProcessor::process (Vst::ProcessData& data)
         oPort_SharedM[0]->mem_lock(SMEMORY_LOCK_INTERVAL);
         for (int i = 0; i < oCcount; i++) {
           curLen = oPort_Sbuffers[i]->get_curLen();
+          if (prefillSyncState[i]) {
+            oPort_bufavgpos_sum[i] += (long long int)curLen;
+            if (++(oPort_bufavgpos_count[i]) >= prefill_synccounts) {
+              curLen = (size_t)(oPort_bufavgpos_sum[i] / (long long int)(oPort_bufavgpos_count[i]));
+              oPort_bufavgpos_sum[i] = (double)0.0;
+              oPort_bufavgpos_count[i] = (size_t)0;
+              if (curLen > bufsync_prefill) {
+                oPort_Sbuffers[i]->pop_count(curLen - bufsync_prefill);
+              }
+              else if (curLen < bufsync_prefill) {
+                oPort_Sbuffers[i]->push_fill((AB_stype)0, bufsync_prefill - curLen);
+              }
+              prefillSyncState[i] = false;
+            }
+            oPort_Sbuffers[i]->pop_count(moveLen);
+            continue;
+          }
           if (curLen > bufsync_high) {
             oPort_Sbuffers[i]->pop_count(curLen - bufsync_prefill);
-            oPort_Sbuffers[i]->pop_arr((AB_stype*)(out[i]), moveLen);
             oPort_bufavgpos_first[i] = (size_t)0;
             oPort_bufavgpos[i] = (size_t)0;
             oPort_bufavgpos_sum[i] = (long long int)0;
             oPort_bufavgpos_count[i] = (size_t)0;
+            if (prefill_synccounts > (size_t)0) {
+              oPort_Sbuffers[i]->pop_count(moveLen);
+              prefillSyncState[i] = true;
+            }
+            else {
+              oPort_Sbuffers[i]->pop_arr((AB_stype*)(out[i]), moveLen);
+            }
             resyncH = (size_t)1;
             needParamUpdate = true;
             continue;
           }
           else if (curLen < bufsync_low + moveLen) {
             oPort_Sbuffers[i]->push_fill((AB_stype)0, bufsync_prefill + moveLen - curLen);
-            oPort_Sbuffers[i]->pop_arr((AB_stype*)(out[i]), moveLen);
             oPort_bufavgpos_first[i] = (size_t)0;
             oPort_bufavgpos[i] = (size_t)0;
             oPort_bufavgpos_sum[i] = (long long int)0;
             oPort_bufavgpos_count[i] = (size_t)0;
+            if (prefill_synccounts > (size_t)0) {
+              oPort_Sbuffers[i]->pop_count(moveLen);
+              prefillSyncState[i] = true;
+            }
+            else {
+              oPort_Sbuffers[i]->pop_arr((AB_stype*)(out[i]), moveLen);
+            }
             resyncL = (size_t)1;
             needParamUpdate = true;
             continue;
           }
-          oPort_bufavgpos_sum[i] += (long long int)curLen;
-          if (++(oPort_bufavgpos_count[i]) >= bufavgpos_counts) {
-            oPort_bufavgpos[i] = (size_t)(oPort_bufavgpos_sum[i] / (long long int)(oPort_bufavgpos_count[i]));
-            oPort_bufavgpos_sum[i] = (double)0.0;
-            oPort_bufavgpos_count[i] = (size_t)0;
-          }
           if (oPort_bufavgpos_first[i] > (size_t)0) {
+            oPort_bufavgpos_sum[i] += (long long int)curLen;
+            if (++(oPort_bufavgpos_count[i]) >= bufavgpos_counts) {
+              oPort_bufavgpos[i] = (size_t)(oPort_bufavgpos_sum[i] / (long long int)(oPort_bufavgpos_count[i]));
+              oPort_bufavgpos_sum[i] = (double)0.0;
+              oPort_bufavgpos_count[i] = (size_t)0;
+            }
             if (oPort_bufavgpos_first[i] + noresample_len < oPort_bufavgpos[i]) {
               oPort_Sbuffers[i]->pop_arr((AB_stype*)(out[i]), moveLen);
               oPort_Sbuffers[i]->pop();
@@ -563,8 +601,14 @@ tresult PLUGIN_API RoutePePeProcessor::process (Vst::ProcessData& data)
             }
           }
           else {
-            oPort_bufavgpos_first[i] = oPort_bufavgpos[i];
-            needParamUpdate = true;
+            oPort_bufavgpos_sum[i] += (long long int)curLen;
+            if (++(oPort_bufavgpos_count[i]) >= bufavgpos_counts) {
+              oPort_bufavgpos[i] = (size_t)(oPort_bufavgpos_sum[i] / (long long int)(oPort_bufavgpos_count[i]));
+              oPort_bufavgpos_sum[i] = (double)0.0;
+              oPort_bufavgpos_count[i] = (size_t)0;
+              oPort_bufavgpos_first[i] = oPort_bufavgpos[i];
+              needParamUpdate = true;
+            }
           }
           oPort_Sbuffers[i]->pop_arr((AB_stype*)(out[i]), moveLen);
         }
@@ -609,24 +653,53 @@ tresult PLUGIN_API RoutePePeProcessor::process (Vst::ProcessData& data)
         oPort_SharedM[0]->mem_lock(SMEMORY_LOCK_INTERVAL);
         for (int i = 0; i < oCcount; i++) {
           curLen = oPort_Sbuffers[i]->get_curLen();
+          if (prefillSyncState[i]) {
+            oPort_bufavgpos_sum[i] += (long long int)curLen;
+            if (++(oPort_bufavgpos_count[i]) >= prefill_synccounts) {
+              curLen = (size_t)(oPort_bufavgpos_sum[i] / (long long int)(oPort_bufavgpos_count[i]));
+              oPort_bufavgpos_sum[i] = (double)0.0;
+              oPort_bufavgpos_count[i] = (size_t)0;
+              if (curLen > bufsync_prefill) {
+                oPort_Sbuffers[i]->pop_count(curLen - bufsync_prefill);
+              }
+              else if (curLen < bufsync_prefill) {
+                oPort_Sbuffers[i]->push_fill((AB_stype)0, bufsync_prefill - curLen);
+              }
+              prefillSyncState[i] = false;
+            }
+            oPort_Sbuffers[i]->pop_count(moveLen);
+            continue;
+          }
           if (curLen > bufsync_high) {
             oPort_Sbuffers[i]->pop_count(curLen - bufsync_prefill);
-            oPort_Sbuffers[i]->pop_arr((AB_stype*)(out[i]), moveLen);
             oPort_bufavgpos_first[i] = (size_t)0;
             oPort_bufavgpos[i] = (size_t)0;
             oPort_bufavgpos_sum[i] = (long long int)0;
             oPort_bufavgpos_count[i] = (size_t)0;
+            if (prefill_synccounts > (size_t)0) {
+              oPort_Sbuffers[i]->pop_count(moveLen);
+              prefillSyncState[i] = true;
+            }
+            else {
+              oPort_Sbuffers[i]->pop_arr((AB_stype*)(out[i]), moveLen);
+            }
             resyncH = (size_t)1;
             needParamUpdate = true;
             continue;
           }
           else if (curLen < bufsync_low + moveLen) {
             oPort_Sbuffers[i]->push_fill((AB_stype)0, bufsync_prefill + moveLen - curLen);
-            oPort_Sbuffers[i]->pop_arr((AB_stype*)(out[i]), moveLen);
             oPort_bufavgpos_first[i] = (size_t)0;
             oPort_bufavgpos[i] = (size_t)0;
             oPort_bufavgpos_sum[i] = (long long int)0;
             oPort_bufavgpos_count[i] = (size_t)0;
+            if (prefill_synccounts > (size_t)0) {
+              oPort_Sbuffers[i]->pop_count(moveLen);
+              prefillSyncState[i] = true;
+            }
+            else {
+              oPort_Sbuffers[i]->pop_arr((AB_stype*)(out[i]), moveLen);
+            }
             resyncL = (size_t)1;
             needParamUpdate = true;
             continue;
@@ -677,39 +750,68 @@ tresult PLUGIN_API RoutePePeProcessor::process (Vst::ProcessData& data)
         oPort_SharedM[0]->mem_lock(SMEMORY_LOCK_INTERVAL);
         for (int i = 0; i < oCcount; i++) {
           curLen = oPort_Sbuffers[i]->get_curLen();
+          if (prefillSyncState[i]) {
+            oPort_bufavgpos_sum[i] += (long long int)curLen;
+            if (++(oPort_bufavgpos_count[i]) >= prefill_synccounts) {
+              curLen = (size_t)(oPort_bufavgpos_sum[i] / (long long int)(oPort_bufavgpos_count[i]));
+              oPort_bufavgpos_sum[i] = (double)0.0;
+              oPort_bufavgpos_count[i] = (size_t)0;
+              if (curLen > bufsync_prefill) {
+                oPort_Sbuffers[i]->pop_count(curLen - bufsync_prefill);
+              }
+              else if (curLen < bufsync_prefill) {
+                oPort_Sbuffers[i]->push_fill((AB_stype)0, bufsync_prefill - curLen);
+              }
+              prefillSyncState[i] = false;
+            }
+            oPort_Sbuffers[i]->pop_count(moveLen);
+            continue;
+          }
           if (curLen > bufsync_high) {
             oPort_Sbuffers[i]->pop_count(curLen - bufsync_prefill);
-            for (size_t j = (size_t)0; j < moveLen; j++) {
-              ((Vst::Sample32*)(out[i]))[j] = (Vst::Sample32)(oPort_Sbuffers[i]->pop());
-            }
             oPort_bufavgpos_first[i] = (size_t)0;
             oPort_bufavgpos[i] = (size_t)0;
             oPort_bufavgpos_sum[i] = (long long int)0;
             oPort_bufavgpos_count[i] = (size_t)0;
+            if (prefill_synccounts > (size_t)0) {
+              oPort_Sbuffers[i]->pop_count(moveLen);
+              prefillSyncState[i] = true;
+            }
+            else {
+              for (size_t j = (size_t)0; j < moveLen; j++) {
+                ((Vst::Sample32*)(out[i]))[j] = (Vst::Sample32)(oPort_Sbuffers[i]->pop());
+              }
+            }
             resyncH = (size_t)1;
             needParamUpdate = true;
             continue;
           }
           else if (curLen < bufsync_low + moveLen) {
             oPort_Sbuffers[i]->push_fill((AB_stype)0, bufsync_prefill + moveLen - curLen);
-            for (size_t j = (size_t)0; j < moveLen; j++) {
-              ((Vst::Sample32*)(out[i]))[j] = (Vst::Sample32)(oPort_Sbuffers[i]->pop());
-            }
             oPort_bufavgpos_first[i] = (size_t)0;
             oPort_bufavgpos[i] = (size_t)0;
             oPort_bufavgpos_sum[i] = (long long int)0;
             oPort_bufavgpos_count[i] = (size_t)0;
+            if (prefill_synccounts > (size_t)0) {
+              oPort_Sbuffers[i]->pop_count(moveLen);
+              prefillSyncState[i] = true;
+            }
+            else {
+              for (size_t j = (size_t)0; j < moveLen; j++) {
+                ((Vst::Sample32*)(out[i]))[j] = (Vst::Sample32)(oPort_Sbuffers[i]->pop());
+              }
+            }
             resyncL = (size_t)1;
             needParamUpdate = true;
             continue;
           }
-          oPort_bufavgpos_sum[i] += (long long int)curLen;
-          if (++(oPort_bufavgpos_count[i]) >= bufavgpos_counts) {
-            oPort_bufavgpos[i] = (size_t)(oPort_bufavgpos_sum[i] / (long long int)(oPort_bufavgpos_count[i]));
-            oPort_bufavgpos_sum[i] = (double)0.0;
-            oPort_bufavgpos_count[i] = (size_t)0;
-          }
           if (oPort_bufavgpos_first[i] > (size_t)0) {
+            oPort_bufavgpos_sum[i] += (long long int)curLen;
+            if (++(oPort_bufavgpos_count[i]) >= bufavgpos_counts) {
+              oPort_bufavgpos[i] = (size_t)(oPort_bufavgpos_sum[i] / (long long int)(oPort_bufavgpos_count[i]));
+              oPort_bufavgpos_sum[i] = (double)0.0;
+              oPort_bufavgpos_count[i] = (size_t)0;
+            }
             if (oPort_bufavgpos_first[i] + noresample_len < oPort_bufavgpos[i]) {
               for (size_t j = (size_t)0; j < moveLen; j++) {
                 ((Vst::Sample32*)(out[i]))[j] = (Vst::Sample32)(oPort_Sbuffers[i]->pop());
@@ -732,10 +834,18 @@ tresult PLUGIN_API RoutePePeProcessor::process (Vst::ProcessData& data)
             }
           }
           else {
-            oPort_bufavgpos_first[i] = oPort_bufavgpos[i];
-            needParamUpdate = true;
+            oPort_bufavgpos_sum[i] += (long long int)curLen;
+            if (++(oPort_bufavgpos_count[i]) >= bufavgpos_counts) {
+              oPort_bufavgpos[i] = (size_t)(oPort_bufavgpos_sum[i] / (long long int)(oPort_bufavgpos_count[i]));
+              oPort_bufavgpos_sum[i] = (double)0.0;
+              oPort_bufavgpos_count[i] = (size_t)0;
+              oPort_bufavgpos_first[i] = oPort_bufavgpos[i];
+              needParamUpdate = true;
+            }
           }
-          oPort_Sbuffers[i]->pop_arr((AB_stype*)(out[i]), moveLen);
+          for (size_t j = (size_t)0; j < moveLen; j++) {
+            ((Vst::Sample32*)(out[i]))[j] = (Vst::Sample32)(oPort_Sbuffers[i]->pop());
+          }
         }
         oPort_SharedM[0]->mem_unlock();
       }
@@ -779,33 +889,64 @@ tresult PLUGIN_API RoutePePeProcessor::process (Vst::ProcessData& data)
         oPort_SharedM[0]->mem_lock(SMEMORY_LOCK_INTERVAL);
         for (int i = 0; i < oCcount; i++) {
           curLen = oPort_Sbuffers[i]->get_curLen();
+          if (prefillSyncState[i]) {
+            oPort_bufavgpos_sum[i] += (long long int)curLen;
+            if (++(oPort_bufavgpos_count[i]) >= prefill_synccounts) {
+              curLen = (size_t)(oPort_bufavgpos_sum[i] / (long long int)(oPort_bufavgpos_count[i]));
+              oPort_bufavgpos_sum[i] = (double)0.0;
+              oPort_bufavgpos_count[i] = (size_t)0;
+              if (curLen > bufsync_prefill) {
+                oPort_Sbuffers[i]->pop_count(curLen - bufsync_prefill);
+              }
+              else if (curLen < bufsync_prefill) {
+                oPort_Sbuffers[i]->push_fill((AB_stype)0, bufsync_prefill - curLen);
+              }
+              prefillSyncState[i] = false;
+            }
+            oPort_Sbuffers[i]->pop_count(moveLen);
+            continue;
+          }
           if (curLen > bufsync_high) {
             oPort_Sbuffers[i]->pop_count(curLen - bufsync_prefill);
-            for (size_t j = (size_t)0; j < moveLen; j++) {
-              ((Vst::Sample32*)(out[i]))[j] = (Vst::Sample32)(oPort_Sbuffers[i]->pop());
-            }
             oPort_bufavgpos_first[i] = (size_t)0;
             oPort_bufavgpos[i] = (size_t)0;
             oPort_bufavgpos_sum[i] = (long long int)0;
             oPort_bufavgpos_count[i] = (size_t)0;
+            if (prefill_synccounts > (size_t)0) {
+              oPort_Sbuffers[i]->pop_count(moveLen);
+              prefillSyncState[i] = true;
+            }
+            else {
+              for (size_t j = (size_t)0; j < moveLen; j++) {
+                ((Vst::Sample32*)(out[i]))[j] = (Vst::Sample32)(oPort_Sbuffers[i]->pop());
+              }
+            }
             resyncH = (size_t)1;
             needParamUpdate = true;
             continue;
           }
           else if (curLen < bufsync_low + moveLen) {
             oPort_Sbuffers[i]->push_fill((AB_stype)0, bufsync_prefill + moveLen - curLen);
-            for (size_t j = (size_t)0; j < moveLen; j++) {
-              ((Vst::Sample32*)(out[i]))[j] = (Vst::Sample32)(oPort_Sbuffers[i]->pop());
-            }
             oPort_bufavgpos_first[i] = (size_t)0;
             oPort_bufavgpos[i] = (size_t)0;
             oPort_bufavgpos_sum[i] = (long long int)0;
             oPort_bufavgpos_count[i] = (size_t)0;
+            if (prefill_synccounts > (size_t)0) {
+              oPort_Sbuffers[i]->pop_count(moveLen);
+              prefillSyncState[i] = true;
+            }
+            else {
+              for (size_t j = (size_t)0; j < moveLen; j++) {
+                ((Vst::Sample32*)(out[i]))[j] = (Vst::Sample32)(oPort_Sbuffers[i]->pop());
+              }
+            }
             resyncL = (size_t)1;
             needParamUpdate = true;
             continue;
           }
-          oPort_Sbuffers[i]->pop_arr((AB_stype*)(out[i]), moveLen);
+          for (size_t j = (size_t)0; j < moveLen; j++) {
+            ((Vst::Sample32*)(out[i]))[j] = (Vst::Sample32)(oPort_Sbuffers[i]->pop());
+          }
         }
         oPort_SharedM[0]->mem_unlock();
       }
@@ -965,6 +1106,10 @@ tresult PLUGIN_API RoutePePeProcessor::setState (IBStream* state)
     tempB = streamer.readInt64(int64temp);
     if (!tempB) break;
     bufsync_high_v = (size_t)int64temp;
+    //
+    tempB = streamer.readInt64(int64temp);
+    if (!tempB) break;
+    prefill_synccounts_v = (size_t)int64temp;
 
     //
     tempB = streamer.readInt64(int64temp);
@@ -987,6 +1132,7 @@ tresult PLUGIN_API RoutePePeProcessor::setState (IBStream* state)
   if (bufsync_prefill_v > (size_t)BUFFER_ETC_MAX_SIZE) bufsync_prefill_v = (size_t)BUFFER_ETC_MAX_SIZE;
   if (bufsync_low_v > (size_t)BUFFER_ETC_MAX_SIZE) bufsync_low_v = (size_t)BUFFER_ETC_MAX_SIZE;
   if (bufsync_high_v > (size_t)BUFFER_ETC_MAX_SIZE) bufsync_high_v = (size_t)BUFFER_ETC_MAX_SIZE;
+  if (prefill_synccounts_v > (size_t)BUFFER_ETC_MAX_SIZE) prefill_synccounts_v = (size_t)BUFFER_ETC_MAX_SIZE;
   if (bufavgpos_counts_v > (size_t)BUFFER_ETC_MAX_SIZE) bufavgpos_counts_v = (size_t)BUFFER_ETC_MAX_SIZE;
   if (noresample_len_v > (size_t)BUFFER_ETC_MAX_SIZE) noresample_len_v = (size_t)BUFFER_ETC_MAX_SIZE;
 
@@ -1014,6 +1160,7 @@ tresult PLUGIN_API RoutePePeProcessor::getState (IBStream* state)
   streamer.writeInt64((int64)bufsync_prefill_v);
   streamer.writeInt64((int64)bufsync_low_v);
   streamer.writeInt64((int64)bufsync_high_v);
+  streamer.writeInt64((int64)prefill_synccounts_v);
   //
   streamer.writeInt64((int64)bufavgpos_counts_v);
   streamer.writeInt64((int64)noresample_len_v);

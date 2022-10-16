@@ -55,13 +55,13 @@ Of course you need to rescan VST on your DAW.
 > * Reset first RoutePePe.
 There are several ways to do this depending on DAW, like set offline/online state of plugin.
 One good method is save/load preset.
-If memory creation was successful, then "Resync - low" or "Overflow" statistic would be increasing.
+If memory creation was successful, then "Resync - (low, high)" or "Overflow" statistic would be increasing (only "low" value but not "high").
 Note that some(most?) DAW might needs UI refresh to check statistic value.
 > * Insert second RoutePePe plugin and set same "R)Connection (shared memory) ID".
 > * Reset second RoutePePe.
 > * That's it!
 Statistic will be reset at the first connection,
-and "Connected, (first avg buffer pos)" value shows "true, ...",
+and "Connected, (first resample avg buffer pos)" value shows "true, ...",
 if everythings goes well.
 > 
 > ### Caution
@@ -132,7 +132,7 @@ This value actually decides latency, but actually latency can be slightly differ
 Note that actual maximum value of this setting is "Buffer size".
 And RoutePePe doesn't inform that actual value is changed to "Buffer size", so please be careful.
 Setting this value does not require reset,
-therefore you can change latency while connection is on by changing this and "Buffer resync" option.
+therefore you can change latency while connection is on by changing this and "Buffer resync" options.
 Of course such behavior cause resync (audio dropout) at that moment.
 > * Buffer resync low
 > > If buffer position goes below this, RoutePePe will do resync.
@@ -146,6 +146,16 @@ Note that of course actual maximum value of this setting is "Buffer size".
 and write side just make overflow when there is no enough empty buffer to write,
 and read side can detect buffer position is greater than "Buffer resync high",
 even if "Buffer size" and "Buffer resync high" is same).
+> * Counts to get avg buffer pos (ForResync)
+> > Counts to get average buffer position, for resync.
+RoutePePe fills/inserts/removes audio sample when connection starts or do resync,
+to match buffer position to "Buffer prefill (avg latency)" value.
+If this option is not "Direct prefill",
+then RoutePePe first calculates average buffer position and inserts/removes audio samples using difference between average buffer position and prefill value.
+This helps actual latency would be more similar with "Buffer prefill (avg latency)" value.
+Audio will be muted until RoutePePe complete resync,
+so it is not recommended to set too high value,
+which cause large startup/resync delay (not audio latency).
 > * Counts to get avg buffer pos (ForResample)
 > > Counts to get average buffer position, for resample.
 You can set it to 0 to disable resample.
@@ -164,18 +174,18 @@ If "Counts to get avg buffer pos (ForResample)" options is 0, this option has no
 Like opening UI again, or setting automation of RoutePePe parameter, etc.
 Statistic values are not saved on preset.
 You can just touch statistic parameter to reset statistic value.
-> * Connected, (first avg buffer pos)
+> * Connected, (first resample avg buffer pos)
 > > This shows status of RoutePePe.
 If connection is on, this value will be true.
 For disconnection this value is not changed (but "Resync - low" and/or "Overflow" statistic will be increased).
-This also shows first average buffer position,
+This also shows first resample average buffer position,
 which is actually decides latency,
 but actual latency can be slightly different than this value too.
-This first average buffer position is only one-time updated after the first connection or after the resync, after some time ("Counts to get avg buffer pos (ForResample)" setting value increases this time).
-Note that first average buffer position is only displayed if RoutePePe has output channels and resample is enabled.
+This first resample average buffer position is only one-time updated after the first connection or after the resync, and after some time to calculate average buffer position.
+Note that first resample average buffer position is only displayed if RoutePePe has output channels and resample is enabled.
 RoutePePe can say that average buffer position is "a - r <= avgerage buffer position <= a + r",
 if resample is enabled,
-('a' is the first average buffer position, 'r' is "Resample if avg buffer pos moves over->" value).
+('a' is the first resample average buffer position, 'r' is "Resample if avg buffer pos moves over->" value).
 You can not connect/disconnect or control latency with changing this value..
 > * Resync - (low, high)
 > > Counts of resync because buffer position is low or high.
