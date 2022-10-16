@@ -3,7 +3,7 @@ RoutePePe is VST®3 plugin that routes (connects, sends) audio stream between tw
 VST® is a trademark of Steinberg Media Technologies GmbH, registered in Europe and other countries.
 
 <img src="VST_Compatible_Logo_Steinberg_with_TM.png">
-<img src="screenshot1.png">
+<img src="screenshot1.1.png">
 
 ---
 
